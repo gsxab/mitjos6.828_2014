@@ -65,21 +65,57 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+    extern void handler0();
+    extern void handler1();
+    extern void handler2();
+    extern void handler3();
+    extern void handler4();
+    extern void handler5();
+    extern void handler6();
+    extern void handler7();
+    extern void handler8();
+    extern void handler9();
+    extern void handler10();
+    extern void handler11();
+    extern void handler12();
+    extern void handler13();
+    extern void handler14();
+    extern void handler16();
 
-	// Per-CPU setup 
-	trap_init_percpu();
+    extern void handler48();
+
+    SETGATE(idt[0], 0, GD_KT, handler0, 0);
+    SETGATE(idt[1], 0, GD_KT, handler1, 0);
+    SETGATE(idt[2], 0, GD_KT, handler2, 0);
+    SETGATE(idt[3], 0, GD_KT, handler3, 3);
+    SETGATE(idt[4], 0, GD_KT, handler4, 0);
+    SETGATE(idt[5], 0, GD_KT, handler5, 0);
+    SETGATE(idt[6], 0, GD_KT, handler6, 0);
+    SETGATE(idt[7], 0, GD_KT, handler7, 0);
+    SETGATE(idt[8], 0, GD_KT, handler8, 0);
+    SETGATE(idt[9], 0, GD_KT, handler9, 0);
+    SETGATE(idt[10], 0, GD_KT, handler10, 0);
+    SETGATE(idt[11], 0, GD_KT, handler11, 0);
+    SETGATE(idt[12], 0, GD_KT, handler12, 0);
+    SETGATE(idt[13], 0, GD_KT, handler13, 0);
+    SETGATE(idt[14], 0, GD_KT, handler14, 0);
+    SETGATE(idt[16], 0, GD_KT, handler16, 0);
+
+    SETGATE(idt[48], 0, GD_KT, handler48, 3);
+    // Per-CPU setup 
+    trap_init_percpu();
 }
 
 // Initialize and load the per-CPU TSS and IDT
-void
+    void
 trap_init_percpu(void)
 {
-	// Setup a TSS so that we get the right stack
-	// when we trap to the kernel.
-	ts.ts_esp0 = KSTACKTOP;
-	ts.ts_ss0 = GD_KD;
+    // Setup a TSS so that we get the right stack
+    // when we trap to the kernel.
+    ts.ts_esp0 = KSTACKTOP;
+    ts.ts_ss0 = GD_KD;
 
-	// Initialize the TSS slot of the gdt.
+    // Initialize the TSS slot of the gdt.
 	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
 					sizeof(struct Taskstate) - 1, 0);
 	gdt[GD_TSS0 >> 3].sd_s = 0;
@@ -143,6 +179,21 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+    cprintf("trap number: %d\n", tf->tf_trapno);
+    switch (tf->tf_trapno) {
+    case T_PGFLT:
+        page_fault_handler(tf);
+        return;
+    case T_BRKPT:
+        monitor(tf);
+        return;
+    case T_SYSCALL:
+        {
+            struct PushRegs* r = &tf->tf_regs;
+            r->reg_eax = syscall(r->reg_eax, r->reg_edx, r->reg_ecx, r->reg_ebx, r->reg_edi, r->reg_esi);
+            return;
+        }
+    }
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -204,6 +255,9 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+    if ((tf->tf_cs & 0x01) == 0) {
+        panic("page_fault in kernel mode, fault address %08x\n", fault_va);
+    }
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
